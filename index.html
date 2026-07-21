@@ -124,6 +124,14 @@
     opacity:.8;
     margin-top:2px;
   }
+  .card.mes{ background:#2f6f4f; }
+  .card.ano{ background:#3a4a8a; }
+  .cards-secondary{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:18px;
+    padding:0 36px 24px;
+  }
   .card.previsto{ background:var(--navy-deep); }
   .card.executado{ background:var(--blue-card); }
   .card.avanco{ background:var(--green); }
@@ -229,20 +237,19 @@
   </div>
   <div class="status" id="status">Carregando dados automaticamente...</div>
 
-  <details style="margin-top:14px;">
-    <summary style="cursor:pointer;color:var(--muted);font-size:13px;">⚙ Configurações avançadas</summary>
+  <div style="display:none;">
     <div class="controls-row" style="margin-top:12px;">
       <div class="field">
         <label for="ghOwner">Usuário GitHub</label>
-        <input type="text" id="ghOwner" placeholder="ex: lucianaboas" style="padding:9px 10px;border-radius:8px;border:1px solid #d4d9e6;min-width:180px;">
+        <input type="text" id="ghOwner" placeholder="ex: lucianaboas">
       </div>
       <div class="field">
         <label for="ghRepo">Repositório</label>
-        <input type="text" id="ghRepo" placeholder="saldo-terraplanagem" style="padding:9px 10px;border-radius:8px;border:1px solid #d4d9e6;min-width:200px;">
+        <input type="text" id="ghRepo" placeholder="saldo-terraplanagem">
       </div>
       <div class="field">
         <label for="ghFolder">Pasta dos arquivos</label>
-        <input type="text" id="ghFolder" placeholder="data" style="padding:9px 10px;border-radius:8px;border:1px solid #d4d9e6;min-width:120px;">
+        <input type="text" id="ghFolder" placeholder="data">
       </div>
       <button class="pick-btn" id="btnSaveConfig">Salvar configuração</button>
     </div>
@@ -253,7 +260,7 @@
       </div>
       <button class="pick-btn" id="btnLoad">Carregar arquivos locais</button>
     </div>
-  </details>
+  </div>
 </div>
 
 <div id="dashboard"></div>
@@ -493,6 +500,29 @@ function pctColor(pct){
   return 'var(--red)';
 }
 
+function getBaselineExecutado(weeks, beforeDateStr){
+  let baseline = 0;
+  for(const w of weeks){
+    if(w.date < beforeDateStr){
+      const t = w.data.get(TOTAL_LABEL);
+      if(t) baseline = t.executado;
+    }
+  }
+  return baseline;
+}
+
+function computePeriodAccumulated(atualWeek){
+  const monthStart = atualWeek.date.slice(0,7) + '-01';
+  const yearStart = atualWeek.date.slice(0,4) + '-01-01';
+  const totalAtual = atualWeek.data.get(TOTAL_LABEL) || {executado:0};
+  const baselineMonth = getBaselineExecutado(loadedWeeks, monthStart);
+  const baselineYear = getBaselineExecutado(loadedWeeks, yearStart);
+  return {
+    mes: totalAtual.executado - baselineMonth,
+    ano: totalAtual.executado - baselineYear
+  };
+}
+
 function render(){
   const atualIdx = parseInt(document.getElementById('atualSelect').value);
   const anteriorIdx = parseInt(document.getElementById('anteriorSelect').value);
@@ -562,6 +592,10 @@ function render(){
 
   const today = new Date();
   const genDate = today.toLocaleDateString('pt-BR');
+  const periodAccum = computePeriodAccumulated(atual);
+  const [ay, am] = atual.date.split('-');
+  const monthNames = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  const monthLabel = monthNames[parseInt(am,10)-1];
 
   document.getElementById('dashboard').innerHTML = `
     <div class="cards">
@@ -583,6 +617,19 @@ function render(){
         <div class="value">${fmt(totalAtual.saldo)} m³</div>
         <div class="label">Saldo Total a Executar</div>
         <div class="sub">${Math.round(100 - pctExecTotal)}% do previsto</div>
+      </div>
+    </div>
+
+    <div class="cards-secondary">
+      <div class="card mes">
+        <div class="value">${fmt(periodAccum.mes)} m³</div>
+        <div class="label">Acumulado no Mês</div>
+        <div class="sub">${monthLabel} de ${ay}</div>
+      </div>
+      <div class="card ano">
+        <div class="value">${fmt(periodAccum.ano)} m³</div>
+        <div class="label">Acumulado no Ano</div>
+        <div class="sub">${ay}</div>
       </div>
     </div>
 
