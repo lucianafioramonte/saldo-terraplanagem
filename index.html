@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Saldo de Terraplanagem — Comparativo Semanal</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --navy-deep:#0b1740;
+    --navy:#16247a;
+    --navy-mid:#1e2a5e;
+    --blue-card:#1c3fa8;
+    --green:#1c9d63;
+    --amber:#d98e04;
+    --red:#d43f3f;
+    --bg:#eef1f7;
+    --row-alt:#f5f7fb;
+    --section-bg:#e4eaf7;
+    --ink:#1a1f36;
+    --muted:#6b7383;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+  }
+  .header{
+    background:linear-gradient(135deg,var(--navy-deep),var(--navy));
+    color:#fff;
+    padding:28px 36px 22px;
+  }
+  .header h1{
+    margin:0 0 6px;
+    font-size:26px;
+    letter-spacing:.5px;
+  }
+  .header p{
+    margin:0;
+    opacity:.85;
+    font-size:14px;
+  }
+  .subbar{
+    background:#fff;
+    padding:10px 36px;
+    font-size:13px;
+    color:var(--muted);
+    border-bottom:1px solid #e2e6ef;
+  }
+  .controls{
+    padding:20px 36px;
+    background:#fff;
+    border-bottom:1px solid #e2e6ef;
+  }
+  .controls-row{
+    display:flex;
+    gap:16px;
+    flex-wrap:wrap;
+    align-items:flex-end;
+  }
+  .field{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .field label{
+    font-size:12px;
+    font-weight:600;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:.4px;
+  }
+  select, button, input[type=file]{
+    font-family:inherit;
+    font-size:14px;
+  }
+  select{
+    padding:9px 10px;
+    border-radius:8px;
+    border:1px solid #d4d9e6;
+    min-width:280px;
+    background:#fafbfd;
+  }
+  .pick-btn{
+    padding:10px 18px;
+    border-radius:8px;
+    border:none;
+    background:var(--navy);
+    color:#fff;
+    cursor:pointer;
+    font-weight:600;
+  }
+  .pick-btn:hover{ background:var(--navy-deep); }
+  .status{
+    font-size:13px;
+    color:var(--muted);
+    margin-top:10px;
+  }
+  .status.err{ color:var(--red); font-weight:600; }
+  .cards{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:18px;
+    padding:24px 36px;
+  }
+  .card{
+    border-radius:10px;
+    padding:20px 22px;
+    color:#fff;
+  }
+  .card .value{
+    font-size:26px;
+    font-weight:800;
+    margin-bottom:6px;
+  }
+  .card .label{
+    font-size:13px;
+    font-weight:600;
+    opacity:.95;
+  }
+  .card .sub{
+    font-size:12px;
+    opacity:.8;
+    margin-top:2px;
+  }
+  .card.previsto{ background:var(--navy-deep); }
+  .card.executado{ background:var(--blue-card); }
+  .card.avanco{ background:var(--green); }
+  .card.saldo{ background:var(--amber); }
+
+  .table-wrap{
+    margin:0 36px 30px;
+    background:#fff;
+    border-radius:10px;
+    overflow:hidden;
+    box-shadow:0 1px 3px rgba(20,30,60,.08);
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:14px;
+  }
+  thead th{
+    background:var(--navy-mid);
+    color:#fff;
+    text-align:left;
+    padding:12px 16px;
+    font-size:12.5px;
+    letter-spacing:.3px;
+    text-transform:uppercase;
+  }
+  thead th.num{ text-align:right; }
+  tbody td{
+    padding:11px 16px;
+    border-bottom:1px solid #eef0f5;
+  }
+  tbody td.num{ text-align:right; font-variant-numeric:tabular-nums; }
+  tr.section td{
+    background:var(--section-bg);
+    font-weight:700;
+    font-size:12.5px;
+    letter-spacing:.4px;
+    color:var(--navy-mid);
+    text-transform:uppercase;
+  }
+  tr.alt td{ background:var(--row-alt); }
+  tr.subtotal td{ font-weight:700; background:#f0f3fa; }
+  tr.total-row td{
+    background:var(--navy-deep);
+    color:#fff;
+    font-weight:800;
+    font-size:15px;
+    padding:14px 16px;
+  }
+  .arrow-up{ color:var(--green); font-weight:700; }
+  .arrow-down{ color:var(--red); font-weight:700; }
+  .arrow-flat{ color:#9aa0ad; font-weight:700; }
+  .bar-cell{ display:flex; align-items:center; gap:10px; justify-content:flex-end; }
+  .bar-track{
+    width:80px; height:7px; border-radius:4px; background:#e5e8f0; overflow:hidden;
+  }
+  .bar-fill{ height:100%; border-radius:4px; }
+  .pct-badge{
+    min-width:42px;
+    text-align:center;
+    padding:3px 8px;
+    border-radius:12px;
+    font-size:12px;
+    font-weight:700;
+    color:#fff;
+  }
+  .legend{
+    display:flex;
+    gap:22px;
+    padding:14px 36px 30px;
+    font-size:12.5px;
+    color:var(--muted);
+    flex-wrap:wrap;
+    justify-content:space-between;
+  }
+  .legend .dots{ display:flex; gap:18px; flex-wrap:wrap; }
+  .dot{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; }
+  .empty-state{
+    padding:60px 36px;
+    text-align:center;
+    color:var(--muted);
+  }
+  .empty-state h2{ color:var(--navy); margin-bottom:8px; }
+  @media (max-width:900px){
+    .cards{ grid-template-columns:repeat(2,1fr); }
+    table{ font-size:12.5px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>SALDO DE TERRAPLANAGEM — COMPARATIVO SEMANAL</h1>
+  <p id="subtitle">Executado anterior × Executado atual — Volume acumulado (m³)</p>
+</div>
+<div class="subbar" id="segbar">Selecione a pasta com os arquivos semanais para começar</div>
+
+<div class="controls">
+  <div class="controls-row">
+    <div class="field">
+      <label for="ghOwner">Usuário GitHub</label>
+      <input type="text" id="ghOwner" placeholder="ex: lucianaboas" style="padding:9px 10px;border-radius:8px;border:1px solid #d4d9e6;min-width:180px;">
+    </div>
+    <div class="field">
+      <label for="ghRepo">Repositório</label>
+      <input type="text" id="ghRepo" placeholder="saldo-terraplanagem" style="padding:9px 10px;border-radius:8px;border:1px solid #d4d9e6;min-width:200px;">
+    </div>
+    <div class="field">
+      <label for="ghFolder">Pasta dos arquivos</label>
+      <input type="text" id="ghFolder" placeholder="data" style="padding:9px 10px;border-radius:8px;border:1px solid #d4d9e6;min-width:120px;">
+    </div>
+    <button class="pick-btn" id="btnSaveConfig">Salvar configuração</button>
+    <button class="pick-btn" id="btnRefresh" style="background:var(--blue-card);">Atualizar agora</button>
+  </div>
+  <div class="status" id="status">Preencha os campos acima e clique em "Salvar configuração".</div>
+
+  <details style="margin-top:14px;">
+    <summary style="cursor:pointer;color:var(--muted);font-size:13px;">Prefiro selecionar os arquivos manualmente do meu computador</summary>
+    <div class="controls-row" style="margin-top:12px;">
+      <div class="field">
+        <label for="folderInput">Arquivos .xlsx (selecione todos da pasta, use Ctrl+A)</label>
+        <input type="file" id="folderInput" accept=".xlsx,.xls" multiple>
+      </div>
+      <button class="pick-btn" id="btnLoad">Carregar arquivos locais</button>
+    </div>
+  </details>
+
+  <div class="controls-row" style="margin-top:14px;">
+    <div class="field">
+      <label for="atualSelect">Semana atual</label>
+      <select id="atualSelect"></select>
+    </div>
+    <div class="field">
+      <label for="anteriorSelect">Semana anterior (comparação)</label>
+      <select id="anteriorSelect"></select>
+    </div>
+  </div>
+</div>
+
+<div id="dashboard"></div>
+
+<script>
+const ROW_TEMPLATE = [
+  {label:'Segmento 1', section:'SEGMENTOS'},
+  {label:'Segmento 2', section:'SEGMENTOS'},
+  {label:'Segmento 3', section:'SEGMENTOS'},
+  {label:'Total dos Segmentos', section:null, subtotal:true},
+  {label:'Dispositivo Primavera', section:'ESTRUTURAS — PRIMAVERA'},
+  {label:'Marginais Primavera', section:null},
+  {label:'Total de Primavera', section:null, subtotal:true},
+  {label:'Dispositivo Sorriso', section:'ESTRUTURAS — SORRISO'},
+  {label:'Marginais Sorriso', section:null},
+  {label:'Total de Sorriso', section:null, subtotal:true},
+];
+const TOTAL_LABEL = 'Volume Total';
+
+let loadedWeeks = []; // {date: 'YYYY-MM-DD', fileName, data: Map(label -> {previsto,executado,saldo})}
+const CONFIG_KEY = 'github-config';
+
+document.getElementById('btnLoad').addEventListener('click', loadFolder);
+document.getElementById('btnSaveConfig').addEventListener('click', () => saveConfigAndLoad(true));
+document.getElementById('btnRefresh').addEventListener('click', () => loadFromGithub(true));
+
+async function saveConfigAndLoad(showStatus){
+  const owner = document.getElementById('ghOwner').value.trim();
+  const repo = document.getElementById('ghRepo').value.trim();
+  const folder = document.getElementById('ghFolder').value.trim() || 'data';
+  if(!owner || !repo){
+    setStatus('Preencha usuário e repositório do GitHub.', true);
+    return;
+  }
+  const cfg = {owner, repo, folder};
+  try{
+    await window.storage.set(CONFIG_KEY, JSON.stringify(cfg));
+  }catch(e){
+    console.error('Falha ao salvar configuração', e);
+  }
+  await loadFromGithub(showStatus);
+}
+
+async function tryLoadSavedConfig(){
+  try{
+    const r = await window.storage.get(CONFIG_KEY);
+    if(r && r.value){
+      const cfg = JSON.parse(r.value);
+      document.getElementById('ghOwner').value = cfg.owner || '';
+      document.getElementById('ghRepo').value = cfg.repo || '';
+      document.getElementById('ghFolder').value = cfg.folder || 'data';
+      if(cfg.owner && cfg.repo){
+        await loadFromGithub(false);
+      }
+    }
+  }catch(e){
+    // sem configuração salva ainda, tudo bem
+  }
+}
+
+function setStatus(msg, isErr){
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.classList.toggle('err', !!isErr);
+}
+
+async function loadFromGithub(manualClick){
+  const owner = document.getElementById('ghOwner').value.trim();
+  const repo = document.getElementById('ghRepo').value.trim();
+  const folder = document.getElementById('ghFolder').value.trim() || 'data';
+  if(!owner || !repo){
+    setStatus('Preencha usuário e repositório do GitHub e clique em "Salvar configuração".', true);
+    return;
+  }
+
+  setStatus(`Buscando arquivos em github.com/${owner}/${repo}/${folder} ...`, false);
+
+  try{
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${folder}`;
+    const resp = await fetch(apiUrl);
+    if(!resp.ok){
+      if(resp.status === 404){
+        setStatus(`Não encontrei a pasta "${folder}" no repositório ${owner}/${repo}. Confira o nome do repositório e da pasta.`, true);
+      }else{
+        setStatus(`Erro ao acessar o GitHub (status ${resp.status}). Verifique se o repositório é público.`, true);
+      }
+      return;
+    }
+    const list = await resp.json();
+    if(!Array.isArray(list)){
+      setStatus('Resposta inesperada do GitHub. Confira usuário/repositório/pasta.', true);
+      return;
+    }
+    const xlsxFiles = list.filter(f => f.type === 'file' && /\.xlsx?$/i.test(f.name) && !f.name.startsWith('~$'));
+    if(xlsxFiles.length === 0){
+      setStatus('Nenhum arquivo .xlsx encontrado na pasta do repositório.', true);
+      return;
+    }
+
+    const weeks = [];
+    for(const f of xlsxFiles){
+      const dateStr = extractDate(f.name);
+      if(!dateStr) continue;
+      const fileResp = await fetch(f.download_url);
+      if(!fileResp.ok) continue;
+      const buf = await fileResp.arrayBuffer();
+      const wb = XLSX.read(buf, {type:'array'});
+      const data = parseWorkbookData(wb);
+      if(data && data.size > 0){
+        weeks.push({date: dateStr, fileName: f.name, data});
+      }
+    }
+
+    if(weeks.length === 0){
+      setStatus('Arquivos encontrados, mas nenhum com dados válidos na aba "RESUMO DE VOLUMES".', true);
+      return;
+    }
+
+    weeks.sort((a,b) => a.date.localeCompare(b.date));
+    loadedWeeks = weeks;
+    populateWeekSelectors(weeks);
+    setStatus(`${weeks.length} semana(s) carregada(s) direto do GitHub.`, false);
+    render();
+  }catch(e){
+    console.error(e);
+    setStatus('Erro de conexão ao buscar do GitHub. Verifique sua internet ou se o repositório é público.', true);
+  }
+}
+
+function populateWeekSelectors(weeks){
+  const atualSel = document.getElementById('atualSelect');
+  const anteriorSel = document.getElementById('anteriorSelect');
+  atualSel.innerHTML = '';
+  anteriorSel.innerHTML = '';
+  weeks.forEach((w, idx) => {
+    const opt1 = document.createElement('option');
+    opt1.value = idx; opt1.textContent = `${w.date}  (${w.fileName})`;
+    atualSel.appendChild(opt1);
+    const opt2 = opt1.cloneNode(true);
+    anteriorSel.appendChild(opt2);
+  });
+  atualSel.selectedIndex = weeks.length - 1;
+  anteriorSel.selectedIndex = weeks.length >= 2 ? weeks.length - 2 : weeks.length - 1;
+  atualSel.onchange = render;
+  anteriorSel.onchange = render;
+}
+
+tryLoadSavedConfig();
+
+function extractDate(fileName){
+  const m = fileName.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return `${m[1]}-${m[2]}-${m[3]}`;
+  const m2 = fileName.match(/(\d{2})-(\d{2})-(\d{4})/);
+  if(m2) return `${m2[3]}-${m2[2]}-${m2[1]}`;
+  return null;
+}
+
+function findResumoSheet(workbook){
+  return workbook.SheetNames.find(n => n.toLowerCase().includes('resumo'));
+}
+
+function parseWorkbookData(workbook){
+  const sheetName = findResumoSheet(workbook);
+  if(!sheetName) return null;
+  const ws = workbook.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true});
+  const map = new Map();
+  for(const row of rows){
+    const label = row[11]; // column L
+    const previsto = row[12]; // M
+    const executado = row[13]; // N
+    const saldo = row[14]; // O
+    if(typeof label === 'string' && typeof previsto === 'number'){
+      map.set(label.trim(), {
+        previsto: previsto,
+        executado: (typeof executado === 'number') ? executado : 0,
+        saldo: (typeof saldo === 'number') ? saldo : (previsto - (executado||0))
+      });
+    }
+  }
+  return map;
+}
+
+async function loadFolder(){
+  const input = document.getElementById('folderInput');
+  const files = Array.from(input.files || []).filter(f => /\.xlsx?$/i.test(f.name) && !f.name.startsWith('~$'));
+  const statusEl = document.getElementById('status');
+
+  if(files.length === 0){
+    statusEl.textContent = 'Nenhum arquivo .xlsx encontrado na pasta selecionada.';
+    statusEl.classList.add('err');
+    return;
+  }
+
+  statusEl.classList.remove('err');
+  statusEl.textContent = `Lendo ${files.length} arquivo(s)...`;
+
+  const weeks = [];
+  for(const file of files){
+    const dateStr = extractDate(file.name);
+    if(!dateStr) continue;
+    try{
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, {type:'array'});
+      const data = parseWorkbookData(wb);
+      if(data && data.size > 0){
+        weeks.push({date: dateStr, fileName: file.name, data});
+      }
+    }catch(e){
+      console.error('Erro lendo', file.name, e);
+    }
+  }
+
+  if(weeks.length === 0){
+    statusEl.textContent = 'Não foi possível ler dados válidos (verifique se os arquivos têm a aba "RESUMO DE VOLUMES" e nome com data AAAA-MM-DD).';
+    statusEl.classList.add('err');
+    return;
+  }
+
+  weeks.sort((a,b) => a.date.localeCompare(b.date));
+  loadedWeeks = weeks;
+  populateWeekSelectors(weeks);
+  statusEl.textContent = `${weeks.length} semana(s) carregada(s) com sucesso (arquivos locais).`;
+  render();
+}
+
+function fmt(n){
+  return Math.round(n).toLocaleString('pt-BR');
+}
+
+function pctColor(pct){
+  if(pct >= 80) return 'var(--green)';
+  if(pct >= 30) return 'var(--amber)';
+  return 'var(--red)';
+}
+
+function render(){
+  const atualIdx = parseInt(document.getElementById('atualSelect').value);
+  const anteriorIdx = parseInt(document.getElementById('anteriorSelect').value);
+  const atual = loadedWeeks[atualIdx];
+  const anterior = loadedWeeks[anteriorIdx];
+  if(!atual) return;
+
+  document.getElementById('subtitle').textContent =
+    anterior && anterior.date !== atual.date
+      ? `Executado ${anterior.date} × Executado ${atual.date} — Volume acumulado (m³)`
+      : `Executado atual (${atual.date}) — Volume acumulado (m³)`;
+
+  const totalAtual = atual.data.get(TOTAL_LABEL) || {previsto:0, executado:0, saldo:0};
+  const totalAnterior = anterior ? (anterior.data.get(TOTAL_LABEL) || {executado:0}) : {executado:0};
+  const avanco = totalAtual.executado - (totalAnterior.executado || 0);
+  const pctExecTotal = totalAtual.previsto ? (totalAtual.executado / totalAtual.previsto * 100) : 0;
+
+  document.getElementById('segbar').textContent =
+    `Comparativo entre ${anterior ? anterior.date : '—'} e ${atual.date} · Avanço da semana em destaque`;
+
+  let rowsHtml = '';
+  let lastSection = null;
+  ROW_TEMPLATE.forEach((tpl, i) => {
+    const cur = atual.data.get(tpl.label) || {previsto:0, executado:0, saldo:0};
+    const prev = anterior ? (anterior.data.get(tpl.label) || {executado:0}) : {executado:0};
+    const rowAvanco = cur.executado - (prev.executado || 0);
+    const pct = cur.previsto ? (cur.executado / cur.previsto * 100) : 0;
+
+    if(tpl.section && tpl.section !== lastSection){
+      rowsHtml += `<tr class="section"><td colspan="7">${tpl.section}</td></tr>`;
+      lastSection = tpl.section;
+    }
+
+    const arrowClass = rowAvanco > 0 ? 'arrow-up' : (rowAvanco < 0 ? 'arrow-down' : 'arrow-flat');
+    const arrowSym = rowAvanco > 0 ? '▲' : (rowAvanco < 0 ? '▼' : '—');
+    const avancoText = rowAvanco === 0 ? '— 0' : `${arrowSym} ${fmt(Math.abs(rowAvanco))}`;
+
+    rowsHtml += `<tr class="${tpl.subtotal ? 'subtotal' : ''}">
+      <td>${tpl.label}</td>
+      <td class="num">${fmt(cur.previsto)}</td>
+      <td class="num">${fmt(prev.executado || 0)}</td>
+      <td class="num">${fmt(cur.executado)}</td>
+      <td class="num ${arrowClass}">${avancoText}</td>
+      <td class="num">${fmt(cur.saldo)}</td>
+      <td class="num">
+        <div class="bar-cell">
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.min(pct,100)}%; background:${pctColor(pct)};"></div></div>
+          <span class="pct-badge" style="background:${pctColor(pct)};">${Math.round(pct)}%</span>
+        </div>
+      </td>
+    </tr>`;
+  });
+
+  rowsHtml += `<tr class="total-row">
+    <td>VOLUME TOTAL</td>
+    <td class="num">${fmt(totalAtual.previsto)}</td>
+    <td class="num">${fmt(totalAnterior.executado || 0)}</td>
+    <td class="num">${fmt(totalAtual.executado)}</td>
+    <td class="num">${avanco === 0 ? '— 0' : (avanco > 0 ? '▲ ' : '▼ ') + fmt(Math.abs(avanco))}</td>
+    <td class="num">${fmt(totalAtual.saldo)}</td>
+    <td class="num">
+      <div class="bar-cell">
+        <span class="pct-badge" style="background:${pctColor(pctExecTotal)};">${Math.round(pctExecTotal)}%</span>
+      </div>
+    </td>
+  </tr>`;
+
+  const today = new Date();
+  const genDate = today.toLocaleDateString('pt-BR');
+
+  document.getElementById('dashboard').innerHTML = `
+    <div class="cards">
+      <div class="card previsto">
+        <div class="value">${fmt(totalAtual.previsto)} m³</div>
+        <div class="label">Volume Previsto Total</div>
+      </div>
+      <div class="card executado">
+        <div class="value">${fmt(totalAtual.executado)} m³</div>
+        <div class="label">Volume Executado Atual</div>
+        <div class="sub">${Math.round(pctExecTotal)}% do previsto</div>
+      </div>
+      <div class="card avanco">
+        <div class="value">${avanco >= 0 ? '+ ' : '- '}${fmt(Math.abs(avanco))} m³</div>
+        <div class="label">Avanço na Semana</div>
+        <div class="sub">de ${fmt(totalAnterior.executado || 0)} → ${fmt(totalAtual.executado)} m³</div>
+      </div>
+      <div class="card saldo">
+        <div class="value">${fmt(totalAtual.saldo)} m³</div>
+        <div class="label">Saldo Total a Executar</div>
+        <div class="sub">${Math.round(100 - pctExecTotal)}% do previsto</div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Trechos / Estrutura</th>
+            <th class="num">Previsto (m³)</th>
+            <th class="num">Executado Anterior (m³)</th>
+            <th class="num">Executado Atual (m³)</th>
+            <th class="num">Avanço (m³)</th>
+            <th class="num">Saldo Atual (m³)</th>
+            <th class="num">% Executado</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="legend">
+      <div class="dots">
+        <span><span class="dot" style="background:var(--green);"></span>≥ 80% executado</span>
+        <span><span class="dot" style="background:var(--amber);"></span>30–79% executado</span>
+        <span><span class="dot" style="background:var(--red);"></span>&lt; 30% executado</span>
+      </div>
+      <div>Gerado em ${genDate}</div>
+    </div>
+  `;
+}
+</script>
+
+</body>
+</html>
