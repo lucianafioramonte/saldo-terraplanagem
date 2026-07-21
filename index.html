@@ -217,50 +217,43 @@
 
 <div class="header">
   <h1>SALDO DE TERRAPLANAGEM — COMPARATIVO SEMANAL</h1>
-  <p id="subtitle">Executado anterior × Executado atual — Volume acumulado (m³)</p>
+  <p id="subtitle">Carregando dados automaticamente do GitHub...</p>
 </div>
 <div class="subbar" id="segbar">Selecione a pasta com os arquivos semanais para começar</div>
 
 <div class="controls">
   <div class="controls-row">
-    <div class="field">
-      <label for="ghOwner">Usuário GitHub</label>
-      <input type="text" id="ghOwner" placeholder="ex: lucianaboas" style="padding:9px 10px;border-radius:8px;border:1px solid #d4d9e6;min-width:180px;">
-    </div>
-    <div class="field">
-      <label for="ghRepo">Repositório</label>
-      <input type="text" id="ghRepo" placeholder="saldo-terraplanagem" style="padding:9px 10px;border-radius:8px;border:1px solid #d4d9e6;min-width:200px;">
-    </div>
-    <div class="field">
-      <label for="ghFolder">Pasta dos arquivos</label>
-      <input type="text" id="ghFolder" placeholder="data" style="padding:9px 10px;border-radius:8px;border:1px solid #d4d9e6;min-width:120px;">
-    </div>
-    <button class="pick-btn" id="btnSaveConfig">Salvar configuração</button>
+    <select id="atualSelect" style="min-width:220px;"></select>
+    <select id="anteriorSelect" style="min-width:220px;"></select>
     <button class="pick-btn" id="btnRefresh" style="background:var(--blue-card);">Atualizar agora</button>
   </div>
-  <div class="status" id="status">Preencha os campos acima e clique em "Salvar configuração".</div>
+  <div class="status" id="status">Carregando dados automaticamente...</div>
 
   <details style="margin-top:14px;">
-    <summary style="cursor:pointer;color:var(--muted);font-size:13px;">Prefiro selecionar os arquivos manualmente do meu computador</summary>
+    <summary style="cursor:pointer;color:var(--muted);font-size:13px;">⚙ Configurações avançadas</summary>
     <div class="controls-row" style="margin-top:12px;">
       <div class="field">
-        <label for="folderInput">Arquivos .xlsx (selecione todos da pasta, use Ctrl+A)</label>
+        <label for="ghOwner">Usuário GitHub</label>
+        <input type="text" id="ghOwner" placeholder="ex: lucianaboas" style="padding:9px 10px;border-radius:8px;border:1px solid #d4d9e6;min-width:180px;">
+      </div>
+      <div class="field">
+        <label for="ghRepo">Repositório</label>
+        <input type="text" id="ghRepo" placeholder="saldo-terraplanagem" style="padding:9px 10px;border-radius:8px;border:1px solid #d4d9e6;min-width:200px;">
+      </div>
+      <div class="field">
+        <label for="ghFolder">Pasta dos arquivos</label>
+        <input type="text" id="ghFolder" placeholder="data" style="padding:9px 10px;border-radius:8px;border:1px solid #d4d9e6;min-width:120px;">
+      </div>
+      <button class="pick-btn" id="btnSaveConfig">Salvar configuração</button>
+    </div>
+    <div class="controls-row" style="margin-top:12px;">
+      <div class="field">
+        <label for="folderInput">Ou selecionar arquivos .xlsx manualmente do computador</label>
         <input type="file" id="folderInput" accept=".xlsx,.xls" multiple>
       </div>
       <button class="pick-btn" id="btnLoad">Carregar arquivos locais</button>
     </div>
   </details>
-
-  <div class="controls-row" style="margin-top:14px;">
-    <div class="field">
-      <label for="atualSelect">Semana atual</label>
-      <select id="atualSelect"></select>
-    </div>
-    <div class="field">
-      <label for="anteriorSelect">Semana anterior (comparação)</label>
-      <select id="anteriorSelect"></select>
-    </div>
-  </div>
 </div>
 
 <div id="dashboard"></div>
@@ -282,6 +275,7 @@ const TOTAL_LABEL = 'Volume Total';
 
 let loadedWeeks = []; // {date: 'YYYY-MM-DD', fileName, data: Map(label -> {previsto,executado,saldo})}
 const CONFIG_KEY = 'github-config';
+const DEFAULT_CONFIG = { owner: 'lucianafioramonte', repo: 'saldo-terraplanagem', folder: 'data' };
 
 document.getElementById('btnLoad').addEventListener('click', loadFolder);
 document.getElementById('btnSaveConfig').addEventListener('click', () => saveConfigAndLoad(true));
@@ -305,20 +299,22 @@ async function saveConfigAndLoad(showStatus){
 }
 
 async function tryLoadSavedConfig(){
+  let cfg = null;
   try{
     const r = await window.storage.get(CONFIG_KEY);
     if(r && r.value){
-      const cfg = JSON.parse(r.value);
-      document.getElementById('ghOwner').value = cfg.owner || '';
-      document.getElementById('ghRepo').value = cfg.repo || '';
-      document.getElementById('ghFolder').value = cfg.folder || 'data';
-      if(cfg.owner && cfg.repo){
-        await loadFromGithub(false);
-      }
+      cfg = JSON.parse(r.value);
     }
   }catch(e){
     // sem configuração salva ainda, tudo bem
   }
+  if(!cfg || !cfg.owner || !cfg.repo){
+    cfg = DEFAULT_CONFIG;
+  }
+  document.getElementById('ghOwner').value = cfg.owner || '';
+  document.getElementById('ghRepo').value = cfg.repo || '';
+  document.getElementById('ghFolder').value = cfg.folder || 'data';
+  await loadFromGithub(false);
 }
 
 function setStatus(msg, isErr){
