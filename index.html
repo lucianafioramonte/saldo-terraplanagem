@@ -282,7 +282,7 @@ const TOTAL_LABEL = 'Volume Total';
 
 let loadedWeeks = []; // {date: 'YYYY-MM-DD', fileName, data: Map(label -> {previsto,executado,saldo})}
 const CONFIG_KEY = 'github-config';
-const DEFAULT_CONFIG = { owner: 'lucianafioramonte', repo: 'saldo-terraplanagem', folder: 'Dados' };
+const DEFAULT_CONFIG = { owner: 'lucianafioramonte', repo: 'saldo-terraplanagem', folder: 'Data' };
 
 document.getElementById('btnLoad').addEventListener('click', loadFolder);
 document.getElementById('btnSaveConfig').addEventListener('click', () => saveConfigAndLoad(true));
